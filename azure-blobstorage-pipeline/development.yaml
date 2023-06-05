@@ -1,0 +1,43 @@
+trigger:
+  - master
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+- stage: Build
+  jobs:
+  - job: Build
+    displayName: 'Build'
+    steps:
+    - script: |
+        cd my_first_app
+        npm audit fix
+        npm install
+        npm run build
+      displayName: 'npm install and build'
+
+    - task: CopyFiles@2
+      inputs:
+        sourceFolder: '$(agent.builddirectory)/s/my_first_app/build'
+        contents: '**'
+        targetFolder: '$(Build.ArtifactStagingDirectory)'
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        artifactName: 'drop'
+        publishLocation: 'Container'
+
+- stage: Deploy
+  displayName: 'Deploy stage'
+  jobs:
+  - job: Deploy
+    displayName: 'Deploy to Azure'
+    steps:
+    - task: AzureCLI@2
+      inputs:
+        azureSubscription: 'Free Trial (816a394a-c009-43b5-b198-ed5c03e9a05f)'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: echo "$(build.artifactstagingdirectory)" && az storage blob upload-batch --overwrite -d  /$web -s "/home/vsts/work/1/s/my_first_app/build/" --account-name harshitsst
